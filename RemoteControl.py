@@ -131,7 +131,7 @@ class RemoteControl():
         #Send shit
         return self.sendCommandToDevice(self.listToBuffer(self.simplifyList(l),device,commandtype))
     
-    def sendString(self,s,device=1,comtype="t"):
+    def sendString(self,s,device=1,comtype="b"):
         return self.sendList(self.stringToList(s),device,comtype)
     
     #SendBuiltin allows to send a built in "signal" over the given device,
