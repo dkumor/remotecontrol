@@ -1,0 +1,3 @@
+From the signal it looks like each of the "blocks" is the whole data string, while the last "block" is cut off
+at the moment I release the button, and the radio module is functional for a tiny bit longer before it is turned off,
+giving the long "end line".
