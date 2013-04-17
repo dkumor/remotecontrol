@@ -60,7 +60,7 @@ class RemoteControl():
         else:
             self.defaultDevices=defaultDevices
         
-        self.ser = serial.Serial(sdevice,9600,timeout=10)
+        self.ser = serial.Serial(sdevice,57600,timeout=10)
         header = self.ser.readline()
         isok=""
         while (isok!="ok\r\n"):

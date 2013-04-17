@@ -4,7 +4,7 @@ cheap 433 MHz RF transmitters can be used to control things like TVs or wireless
 attempts to make an arduino connected through serial to a computer (ideally a raspberry pi) be able
 to output an arbitrary binary sequence through connected modules.
 
-The code will boot, display a "SerialRemote v0.20" and on the next line, display an "ok".
+The code will boot, display a "SerialRemote v0.20" at 57600 baud and on the next line, display an "ok".
 After each command you send is executed, you must wait for an "ok\r\n" to be able to execute further commands.
 If an error is encountered at any point, an "err\r\n" will be sent. If the error is fatal, and the arduino is
 about to be put into an infinite loop for safety, and "ferr\r\n" will be sent.
@@ -73,7 +73,7 @@ void setup() {
     
     
     //Get to communicatin'
-    Serial.begin(9600);
+    Serial.begin(57600);
     Serial.print("SerialRemote v");
     Serial.println(RFVERSION);
     
