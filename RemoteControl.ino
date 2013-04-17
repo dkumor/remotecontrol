@@ -152,7 +152,10 @@ bool text_bufferRead() {
         rd = readIntLine();
         dataBuffer[i] = rd;
     }
-    if (rd!=0) return false;
+    if (rd!=0) {
+        dataBuffer[BUFFERSIZE-1]=0;
+        return false;
+    }
     return true;
 }
 
@@ -166,7 +169,10 @@ bool binary_bufferRead() {
         rd += (unsigned int)Serial.read();
         dataBuffer[i] = rd;
     }
-    if (rd!=0) return false;
+    if (rd!=0) {
+        dataBuffer[BUFFERSIZE-1]=0;
+        return false;
+    }
     return true;
 }
 
