@@ -4,7 +4,7 @@ import copy
 
 class RemoteControl():
     
-    def __init__(self,conversions=None,strings=None,defaultDevices=None, sdevice='/dev/ttyACM0'):
+    def __init__(self,conversions=None,strings=None,defaultDevices=None, sdevice='/dev/ttyUSB0'):
         #Conversions are the actual binary sequences of the "most basic" s and 0s.
         #   Note that converisons can only be single characters
         if not conversions:
@@ -61,13 +61,7 @@ class RemoteControl():
             self.defaultDevices=defaultDevices
         
         self.ser = serial.Serial(sdevice,57600,timeout=10)
-        header = self.ser.readline()
-        isok=""
-        while (isok!="ok\r\n"):
-            isok= self.ser.readline()
-            if (isok=="ferr\r\n"):
-                self.close()
-                raise "Serial device error"
+        
                 
     #Closes all necessary resources
     def close(self):
@@ -80,6 +74,7 @@ class RemoteControl():
         self.ser.write(s)
         while (isok!="ok\r\n"):
             isok= self.ser.readline()
+            print isok
             if (isok=="ferr\r\n"):
                 self.close()
                 raise "Serial device error"
@@ -163,8 +158,13 @@ class RemoteControl():
         self.setString(str(objectID)+"_"+str(int(onoff)),string,defdevice)
 
 if (__name__=="__main__"):
+    print "Creating"
     o = RemoteControl()
+    print "Toggling"
     o.toggle(1,True)
+    print "User Input"
     raw_input()
+    print "Toggle"
     o.toggle(4,False)
+    print "Done"
     
