@@ -53,8 +53,8 @@ The following code is released to the public domain in 2013 by Daniel Kumor
 #include <string.h>
 
 #define RFVERSION 0.2f
-#define RF433_POWERPIN 2
-#define RF433_DATAPIN 4
+#define RF433_POWERPIN 9
+#define RF433_DATAPIN 10
 #define LEDPIN 13
 #define BUFFERSIZE 700
 
