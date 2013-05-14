@@ -244,7 +244,21 @@ void loop() {
     //Don't do anything while no serial available
     while (!Serial.available());
     char cmd = Serial.read();       //Read command character
-    while (Serial.read()!='\n');    //Ignore rest until next line
+    char cmd2;                      //Extra command characters
+    while (!Serial.available());    //Wait for serial
+    cmd2 = Serial.read();
+    if (cmd2!='\n') {
+        do {
+            //There were extra characters, so give warning
+            Serial.print("Ignoring ");
+            Serial.println(cmd2);
+            
+            //Check again
+            while (!Serial.available());    //Wait for serial
+            cmd2 = Serial.read();
+        } while (cmd2!='\n');
+    }
+    
     unsigned int device,com;
     switch (cmd) {
         //Command 't' is for 'text'
@@ -269,6 +283,8 @@ void loop() {
             if (!(command(com) && writeBufferToDevice(device))) Serial.println("err");
             break;
         default:
+            Serial.print("Unrecognized command: ");
+            Serial.println(cmd);
             Serial.println("err");
             break;
     }

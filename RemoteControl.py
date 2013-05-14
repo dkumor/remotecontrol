@@ -62,19 +62,24 @@ class RemoteControl():
         
         self.ser = serial.Serial(sdevice,57600,timeout=10)
         
+        #Sometimes, we get some sort of weird failure on serial start, so clear buffer of micro
+        #   Serial probably sometimes sends initialization characters. This is especially annoying
+        #   on RasPi.
+        self.sendCommandToDevice("0\n")
                 
     #Closes all necessary resources
     def close(self):
         self.ser.close()
         
     #Writes command string s and waits for ok
-    def sendCommandToDevice(self,s):
+    def sendCommandToDevice(self,s,verbose=False):
         success=True
         isok=""
         self.ser.write(s)
         while (isok!="ok\r\n"):
             isok= self.ser.readline()
-            print isok
+            if (verbose):
+                print isok,
             if (isok=="ferr\r\n"):
                 self.close()
                 raise "Serial device error"
@@ -118,35 +123,35 @@ class RemoteControl():
         return ""
     
     #Sends the sequence defined by the list to device number given
-    def sendList(self,l,device=1,commandtype="b"):
+    def sendList(self,l,device=1,commandtype="b",verbose=False):
         #Communication starts from 0, so if the connection does not start from a 0, insert a short 0 pulse
         if (l[0][0]!=0):
             l=[[0,10]]+l
         
         #Send shit
-        return self.sendCommandToDevice(self.listToBuffer(self.simplifyList(l),device,commandtype))
+        return self.sendCommandToDevice(self.listToBuffer(self.simplifyList(l),device,commandtype),verbose)
     
-    def sendString(self,s,device=1,comtype="b"):
-        return self.sendList(self.stringToList(s),device,comtype)
+    def sendString(self,s,device=1,comtype="b",verbose=False):
+        return self.sendList(self.stringToList(s),device,comtype,verbose)
     
     #SendBuiltin allows to send a built in "signal" over the given device,
-    def sendBuiltin(self,device=1,commandID=0):
-        return self.sendCommandToDevice("x\n"+str(device)+"\n"+str(commandID)+"\n")
+    def sendBuiltin(self,device=1,commandID=0,verbose=False):
+        return self.sendCommandToDevice("x\n"+str(device)+"\n"+str(commandID)+"\n",verbose)
     
-    def sendRedo(self,device=1):
-        return self.sendCommandToDevice("w\n"+str(device)+"\n")
+    def sendRedo(self,device=1,verbose=False):
+        return self.sendCommandToDevice("w\n"+str(device)+"\n",verbose)
     
     #The following functions are for simple activation's sake
     
-    def toggle(self,objectID,onoff):
+    def toggle(self,objectID,onoff,verbose=False):
         #print self.strings[str(outletnum)+str(int(turnon))]
-       return self.send(str(objectID)+"_"+str(int(onoff)))
+       return self.send(str(objectID)+"_"+str(int(onoff)),verbose)
     
-    def send(self,stringid):
+    def send(self,stringid,verbose=False):
         if isinstance(self.strings[stringid],int):  #If the stringid refers to an integer, then that is the ID of a builtin command
-            return self.sendBuiltin(self.defaultDevices[stringid],self.strings[stringid])
+            return self.sendBuiltin(self.defaultDevices[stringid],self.strings[stringid],verbose)
         else:
-            return self.sendString(self.strings[stringid],device=self.defaultDevices[stringid])
+            return self.sendString(self.strings[stringid],device=self.defaultDevices[stringid],verbose=verbose)
             
     def setConversion(self,convchar,conv):
         self.conversions[convchar]=conv
