@@ -1,3 +1,4 @@
+#The following code is released to the public domain in 2013 by Daniel Kumor
 import serial
 import sys
 import copy
