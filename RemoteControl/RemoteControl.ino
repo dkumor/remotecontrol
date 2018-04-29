@@ -41,6 +41,8 @@ x:
   A sample command is "x\n3\n8\n". This sends command 8 to device 3.
   The reason that builtin commands are preferable to sending buffers manually is that they are *much* faster: there is usually about a second
   of delay in sending a buffer, while the delay is negligible when using builtin.
+r:
+  Read sensors attached to the circuit. Right now, it is just a temperature sensor. 
 
 
 Please note that there is a reference implementation of interfacing with this program in python called RemoteControl.py, which should be in the
@@ -56,6 +58,8 @@ The following code is released to the public domain in 2013 by Daniel Kumor
 #define RF433_POWERPIN 9
 #define RF433_DATAPIN 10
 #define LEDPIN 13
+#define TEMPPIN A0
+#define LIGHTPIN A1
 #define BUFFERSIZE 700
 
 unsigned int *dataBuffer;
@@ -282,6 +286,14 @@ void loop() {
             com = readIntLine();     //Command number
             if (!(command(com) && writeBufferToDevice(device))) Serial.println("err");
             break;
+        //'r' is reading sensor values
+        case 'r':
+            Serial.print("temp: ");
+            Serial.println(0.78125*analogRead(TEMPPIN)-67.84); // Temperature in celcius
+            Serial.print("light: ");
+            Serial.println(analogRead(LIGHTPIN)); // Raw light level reading
+            break;
+        
         default:
             Serial.print("Unrecognized command: ");
             Serial.println(cmd);

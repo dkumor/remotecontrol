@@ -5,7 +5,7 @@ import copy
 
 class RemoteControl():
     
-    def __init__(self,conversions=None,strings=None,defaultDevices=None, sdevice='/dev/ttyUSB0'):
+    def __init__(self,conversions=None,strings=None,defaultDevices=None, sdevice='/dev/ttyS0'):
         #Conversions are the actual binary sequences of the "most basic" s and 0s.
         #   Note that converisons can only be single characters
         if not conversions:
@@ -87,7 +87,29 @@ class RemoteControl():
             elif (isok=="err\r\n"):
                 success=False
         return success
-        
+    
+    def readSensors(self):
+        self.ser.write("r\n")
+        isok=self.ser.readline()
+        output = {}
+        while (isok!="ok\r\n"):
+            if (isok=="ferr\r\n"):
+                self.close()
+                raise "Serial device error"
+            # This line is a sensor reading
+            sname,svalue = isok.split(":")
+            sname=sname.strip()
+            svalue = svalue.strip()
+            try:
+                svalue = int(svalue)
+            except:
+                try:
+                    svalue = float(svalue)
+                except:
+                    pass
+            output[sname] = svalue
+            isok = self.ser.readline()
+        return output
     #Given a string, applies the conversions to create the list of binary activations
     def stringToList(self,s):
         l=[]
@@ -166,11 +188,13 @@ class RemoteControl():
 if (__name__=="__main__"):
     print "Creating"
     o = RemoteControl()
+    print "Reading Sensors"
+    print o.readSensors()
     print "Toggling"
-    o.toggle(1,True)
+    o.toggle(2,True)
     print "User Input"
     raw_input()
     print "Toggle"
-    o.toggle(4,False)
+    o.toggle(5,False)
     print "Done"
     
