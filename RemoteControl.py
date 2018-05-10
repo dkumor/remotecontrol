@@ -185,9 +185,24 @@ class RemoteControl():
     def setObjectToggle(self,objectID,onoff,defdevice,string):
         self.setString(str(objectID)+"_"+str(int(onoff)),string,defdevice)
 
+    def readIR(self):
+        self.ser.write("i\n")
+        device = int(self.ser.readline().strip())
+        command = int(self.ser.readline().strip())
+        bits = int(self.ser.readline().strip())
+        isok = self.ser.readline()
+        if isok != "ok\r\n":
+            raise "IR read did not succeed"
+        return (device,command,bits)
+    def writeIR(self,device,command,bits):
+        return self.sendCommandToDevice("l\n%d\n%d\n%d\n"%(device,command,bits))
+        
+
 if (__name__=="__main__"):
     print "Creating"
     o = RemoteControl()
+    print o.writeIR(3, 2774153415L, 32)
+    """
     print "Reading Sensors"
     print o.readSensors()
     print "Toggling"
@@ -196,5 +211,6 @@ if (__name__=="__main__"):
     raw_input()
     print "Toggle"
     o.toggle(5,False)
+    """
     print "Done"
     

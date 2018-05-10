@@ -54,16 +54,37 @@ The following code is released to the public domain in 2013 by Daniel Kumor
 //memcpy
 #include <string.h>
 
+// BME 680
+#include <Adafruit_BME680.h>
+#include <bme680_defs.h>
+#include <bme680.h>
+// TSL2561 lux sensor
+#include <Adafruit_TSL2561_U.h>
+
 #define RFVERSION 0.2f
 #define RF433_POWERPIN 9
 #define RF433_DATAPIN 10
+
+// IR 
+#include <IRremote.h>
+#define IR_RECV_PIN 12
+
 #define LEDPIN 13
-#define TEMPPIN A0
+//#define TEMPPIN A0
 #define LIGHTPIN A1
-#define BUFFERSIZE 700
+#define BUFFERSIZE 250
 
-unsigned int *dataBuffer;
+unsigned int dataBuffer[BUFFERSIZE];
 
+// The BME 680 sensor over I2C
+Adafruit_BME680 bme;
+// TSL2561 sensor over I2C
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+
+IRsend irsend;
+IRrecv irrecv(IR_RECV_PIN);
+
+decode_results irresults;
 void setup() {
     
     //Write notification LED
@@ -74,21 +95,34 @@ void setup() {
     pinMode(RF433_DATAPIN,OUTPUT);
       digitalWrite(RF433_POWERPIN,0);
       digitalWrite(RF433_DATAPIN,0);
+
+   pinMode(IR_RECV_PIN,INPUT);
+   pinMode(3,OUTPUT);
+   digitalWrite(3,0);
     
     
     //Get to communicatin'
     Serial.begin(57600);
     Serial.print("SerialRemote v");
     Serial.println(RFVERSION);
+
     
-    //The databuffer allows the user to send a custom binary sequence
-    //  during runtime.
-    dataBuffer = (unsigned int*)malloc(BUFFERSIZE*sizeof(unsigned int));
-    if (!dataBuffer) {
-        //If allocation fails, require restart (ferr=fatal error)
+    if (!bme.begin() || !tsl.begin()) {
+        //If allocation fails, or sensors fail, require restart (ferr=fatal error)
         Serial.println("ferr");
         while (true);
     }
+
+    // Set up oversampling and filter initialization
+    bme.setTemperatureOversampling(BME680_OS_8X);
+    bme.setHumidityOversampling(BME680_OS_2X);
+    bme.setPressureOversampling(BME680_OS_4X);
+    bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
+    bme.setGasHeater(320, 150); // 320*C for 150 ms
+
+    // Now set up the lux sensor
+    tsl.enableAutoRange(true);
+    tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);
 }
 
 //This function does the bit-flipping necessary to send the signal we want
@@ -115,7 +149,11 @@ void writeBuffer(int pin) {
 //This sends the actual signal using the device given
 bool writeBufferToDevice(unsigned int device) {
     switch (device) {
-          case 0:  //The 0 device does not send anything
+          case 0:  //The 0 device prints the buffer over serial
+              for (int i=0; i<BUFFERSIZE && dataBuffer[i]!=0;i++) {
+                Serial.println(dataBuffer[i]);
+              }
+              Serial.println("0");
               break;    
           case 1:  //The 1 device is a 433MHz transmitter   
               //Turn on the transmitter, and wait a bit to make sure it is working
@@ -127,6 +165,17 @@ bool writeBufferToDevice(unsigned int device) {
               digitalWrite(RF433_DATAPIN,0);
               digitalWrite(RF433_POWERPIN,0);
               break;
+          case 2: // The 2 device is IR LED
+              digitalWrite(LEDPIN,1);
+              { 
+                // Find length of the buffer
+                int i;
+                for (i=0; i<BUFFERSIZE && dataBuffer[i]!=0;i++);
+                // send the buffer to IR
+                irsend.sendRaw(dataBuffer,i,38);
+              }
+              digitalWrite(LEDPIN,0);
+              break;
           default:
               return false;  //The device doesn't exist!
               break;
@@ -135,15 +184,15 @@ bool writeBufferToDevice(unsigned int device) {
 }
 
 //This is a helper function: It reads an integer (unsigned int) which is in the form "3432\n"
-unsigned int readIntLine() {
-    unsigned int value = 0;
+unsigned long readIntLine() {
+    unsigned long value = 0;
     char b = 0;
     while (b!='\n') {
         while (!Serial.available());
         b = Serial.read();
         if (b>=48 && b<=57) {
             value*=10;
-            value += (unsigned int)b - 48;
+            value += (unsigned long)b - 48;
         }
     }
     return value;
@@ -264,6 +313,8 @@ void loop() {
     }
     
     unsigned int device,com;
+    unsigned long IRcommand;
+    sensors_event_t event;
     switch (cmd) {
         //Command 't' is for 'text'
         case 't':
@@ -286,10 +337,85 @@ void loop() {
             com = readIntLine();     //Command number
             if (!(command(com) && writeBufferToDevice(device))) Serial.println("err");
             break;
+        // 'i' is for IR read
+        case 'i':
+            irrecv.enableIRIn();
+            // Wait for signal
+            while  (!irrecv.decode(&irresults)) delay(100);
+
+            // Write the raw signal to data buffer
+            // Copied from IRrecord example
+            // To store raw codes:
+            // Drop first value (gap)
+            // Convert from ticks to microseconds
+            // Tweak marks shorter, and spaces longer to cancel out IR receiver distortion
+            {
+              for (int i = 1; i < irresults.rawlen; i++) {
+                if (i % 2) {
+                  // Mark
+                  dataBuffer[i - 1] = irresults.rawbuf[i]*USECPERTICK - MARK_EXCESS;
+                } 
+                else {
+                  // Space
+                  dataBuffer[i - 1] = irresults.rawbuf[i]*USECPERTICK + MARK_EXCESS;
+                }
+              }
+            }
+            dataBuffer[irresults.rawlen] = 0;
+
+            // Next, print the decode type and the value
+            Serial.println(irresults.decode_type);
+            Serial.println(irresults.value);
+            Serial.println(irresults.bits);
+            break;
+        case 'l':
+            // 'l' is for directly send LED command
+            device = readIntLine();
+            IRcommand = readIntLine();
+            com = readIntLine();
+            // We send to device value com.
+            switch (device) {
+               case SONY:
+                irsend.sendSony(IRcommand,com);
+                break;
+               case NEC:
+                irsend.sendNEC(IRcommand,com);
+                break;
+               case SAMSUNG:
+                irsend.sendSAMSUNG(IRcommand,com);
+                break;
+               default:
+                Serial.print("Unrecognized device: ");
+                Serial.println(device);
+                Serial.println("err");
+                break;
+            }
+            
+            
         //'r' is reading sensor values
         case 'r':
-            Serial.print("temp: ");
-            Serial.println(0.78125*analogRead(TEMPPIN)-67.84); // Temperature in celcius
+            // BME680
+            if (bme.performReading()) {
+              Serial.print("temp: ");
+              Serial.println(bme.temperature);
+              Serial.print("pressure: ");
+              Serial.println(bme.pressure/100.0);
+              Serial.print("humidity: ");
+              Serial.println(bme.humidity/100.0);
+              Serial.print("gas: ");
+              Serial.println(bme.gas_resistance/1000.0);
+            }
+            
+            // TSL2561
+            tsl.getEvent(&event);
+            Serial.print("lux: ");
+            Serial.println(event.light);  
+            
+            
+
+            // Manual Sensors
+            //Serial.print("temp2: ");
+            //Serial.println(0.78125*analogRead(TEMPPIN)-67.84); // Temperature in celcius
             Serial.print("light: ");
             Serial.println(analogRead(LIGHTPIN)); // Raw light level reading
             break;
