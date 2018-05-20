@@ -72,7 +72,7 @@ The following code is released to the public domain in 2013 by Daniel Kumor
 #define LEDPIN 13
 //#define TEMPPIN A0
 #define LIGHTPIN A1
-#define BUFFERSIZE 250
+#define BUFFERSIZE 280
 
 unsigned int dataBuffer[BUFFERSIZE];
 
@@ -102,7 +102,7 @@ void setup() {
     
     
     //Get to communicatin'
-    Serial.begin(57600);
+    Serial.begin(115200);
     Serial.print("SerialRemote v");
     Serial.println(RFVERSION);
 
@@ -367,6 +367,7 @@ void loop() {
             Serial.println(irresults.decode_type);
             Serial.println(irresults.value);
             Serial.println(irresults.bits);
+            Serial.println(irresults.rawlen);
             break;
         case 'l':
             // 'l' is for directly send LED command

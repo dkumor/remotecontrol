@@ -61,12 +61,12 @@ class RemoteControl():
         else:
             self.defaultDevices=defaultDevices
         
-        self.ser = serial.Serial(sdevice,57600,timeout=10)
+        self.ser = serial.Serial(sdevice,115200,timeout=10)
         
         #Sometimes, we get some sort of weird failure on serial start, so clear buffer of micro
         #   Serial probably sometimes sends initialization characters. This is especially annoying
         #   on RasPi.
-        self.sendCommandToDevice("0\n")
+        self.sendCommandToDevice(b"0\n")
                 
     #Closes all necessary resources
     def close(self):
@@ -76,28 +76,31 @@ class RemoteControl():
     def sendCommandToDevice(self,s,verbose=False):
         success=True
         isok=""
+        try: # Python 3 bytes are annoying
+            s = s.encode()
+        except: pass
         self.ser.write(s)
-        while (isok!="ok\r\n"):
+        while (isok!=b"ok\r\n"):
             isok= self.ser.readline()
             if (verbose):
-                print isok,
-            if (isok=="ferr\r\n"):
+                print(isok)
+            if (isok==b"ferr\r\n"):
                 self.close()
                 raise "Serial device error"
-            elif (isok=="err\r\n"):
+            elif (isok==b"err\r\n"):
                 success=False
         return success
     
     def readSensors(self):
-        self.ser.write("r\n")
+        self.ser.write(b"r\n")
         isok=self.ser.readline()
         output = {}
-        while (isok!="ok\r\n"):
-            if (isok=="ferr\r\n"):
+        while (isok!=b"ok\r\n"):
+            if (isok==b"ferr\r\n"):
                 self.close()
                 raise "Serial device error"
             # This line is a sensor reading
-            sname,svalue = isok.split(":")
+            sname,svalue = isok.split(b":")
             sname=sname.strip()
             svalue = svalue.strip()
             try:
@@ -106,14 +109,14 @@ class RemoteControl():
                 try:
                     svalue = float(svalue)
                 except:
-                    pass
-            output[sname] = svalue
+                    svalue = svalue.decode()
+            output[sname.decode()] = svalue
             isok = self.ser.readline()
         return output
     #Given a string, applies the conversions to create the list of binary activations
     def stringToList(self,s):
         l=[]
-        for i in xrange(len(s)):
+        for i in range(len(s)):
             l+= copy.deepcopy(self.conversions[s[i]])
         return l
 
@@ -121,7 +124,7 @@ class RemoteControl():
     def simplifyList(self,l):
         if (len(l)<=1): return l
         res = [l[0]]
-        for i in xrange(1,len(l)):
+        for i in range(1,len(l)):
             if (res[-1][0]==l[i][0]):
                 res[-1][1]+=l[i][1]
             else:
@@ -130,18 +133,18 @@ class RemoteControl():
         
     #given a list, prepares the command string for the given data sending mode
     def listToBuffer(self,l,device,c):
-        s=""
         if (c=='t'):    #Text mode
+            s=""
             s+="t\n"+str(device)+'\n'
-            for i in xrange(len(l)):
+            for i in range(len(l)):
                 s+=str(l[i][1])+'\n'
             s+="0\n"
             return s
         elif (c=='b'):  #Binary mode
-            s+="b\n"+str(device)+'\n'
-            for i in xrange(len(l)):
-                s+=chr((l[i][1] >> 8) & 0xff) + chr(l[i][1] & 0xff)
-            s+=chr(0)+chr(0)
+            s=b"b\n"+str(device).encode()+b'\n'
+            for i in range(len(l)):
+                s+=bytearray(((l[i][1] >> 8) & 0xff,l[i][1] & 0xff))
+            s+=bytearray((0,0))
             return s
         return ""
     
@@ -186,12 +189,12 @@ class RemoteControl():
         self.setString(str(objectID)+"_"+str(int(onoff)),string,defdevice)
 
     def readIR(self):
-        self.ser.write("i\n")
+        self.ser.write(b"i\n")
         device = int(self.ser.readline().strip())
         command = int(self.ser.readline().strip())
         bits = int(self.ser.readline().strip())
         isok = self.ser.readline()
-        if isok != "ok\r\n":
+        if isok != b"ok\r\n":
             raise "IR read did not succeed"
         return (device,command,bits)
     def writeIR(self,device,command,bits):
@@ -199,18 +202,18 @@ class RemoteControl():
         
 
 if (__name__=="__main__"):
-    print "Creating"
+    print("Creating")
     o = RemoteControl()
-    print o.writeIR(3, 2774153415L, 32)
-    """
-    print "Reading Sensors"
-    print o.readSensors()
-    print "Toggling"
-    o.toggle(2,True)
-    print "User Input"
-    raw_input()
-    print "Toggle"
+    #print(o.writeIR(3, 2774153415, 32))
+    
+    print("Reading Sensors")
+    print(o.readSensors())
+    print("Toggling")
+    o.toggle(5,True)
+    print("User Input")
+    input()
+    print("Toggle")
     o.toggle(5,False)
-    """
-    print "Done"
+    
+    print("Done")
     
